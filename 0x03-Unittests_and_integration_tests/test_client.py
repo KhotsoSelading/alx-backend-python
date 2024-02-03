@@ -15,13 +15,18 @@ from fixtures import org_payload, repos_payload, expected_repos, apache2_repos
 
 
 class TestGithubOrgClient(unittest.TestCase):
-
+    """
+    TestGithubOrgClient
+    """
     @parameterized.expand([
         ("google",),
         ("abc",)
     ])
     @patch('client.get_json')
     def test_org(self, org_name, mock_get_json):
+        """
+        test_org
+        """
         mock_get_json.return_value = {"repos_url": "http://example.com"}
         client = GithubOrgClient(org_name)
         result = client.org()
@@ -31,6 +36,9 @@ class TestGithubOrgClient(unittest.TestCase):
     @patch('client.GithubOrgClient.org',
            return_value={"repos_url": "http://example.com"})
     def test_public_repos_url(self, mock_org):
+        """
+        test_org
+        """
         client = GithubOrgClient("google")
         result = client._public_repos_url()
         mock_org.assert_called_once()
@@ -41,6 +49,9 @@ class TestGithubOrgClient(unittest.TestCase):
         ({"license": {"key": "other_license"}}, "my_license", False)
     ])
     def test_has_license(self, repo, license_key, expected_result):
+        """
+        test_org
+        """
         client = GithubOrgClient("google")
         with patch('client.GithubOrgClient._public_repos_url',
                    return_value="http://example.com/repos"), \
@@ -52,17 +63,29 @@ class TestGithubOrgClient(unittest.TestCase):
 @parameterized_class("org_payload", "repos_payload", "expected_repos",
                      "apache2_repos")
 class TestIntegrationGithubOrgClient(unittest.TestCase):
+    """
+    test_org
+    """
 
     @classmethod
     def setUpClass(cls):
+        """
+        test_org
+        """
         cls.get_patcher = patch('client.requests.get')
         cls.mock_requests_get = cls.get_patcher.start()
 
     @classmethod
     def tearDownClass(cls):
+        """
+        test_org
+        """
         cls.get_patcher.stop()
 
     def test_public_repos(self):
+        """
+        test_org
+        """
         client = GithubOrgClient("google")
         self.mock_requests_get.side_effect = [
             Mock(json=lambda: self.org_payload),
@@ -72,6 +95,9 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         self.assertEqual(result, self.expected_repos)
 
     def test_public_repos_with_license(self):
+        """
+        test_org
+        """
         client = GithubOrgClient("google")
         self.mock_requests_get.side_effect = [
             Mock(json=lambda: self.org_payload),
@@ -82,18 +108,33 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
 
 
 class TestMemoize(unittest.TestCase):
+    """
+    test_org
+    """
 
     class TestClass:
+        """
+        test_org
+        """
 
         def a_method(self):
+            """
+            test_org
+            """
             return 42
 
         @memoize
         def a_property(self):
+            """
+            test_org
+            """
             return self.a_method()
 
     @patch.object(TestClass, 'a_method')
     def test_memoize(self, mock_a_method):
+        """
+        test_org
+        """
         instance = self.TestClass()
         result_1 = instance.a_property()
         result_2 = instance.a_property()
@@ -102,6 +143,9 @@ class TestMemoize(unittest.TestCase):
 
 
 class TestGetJson(unittest.TestCase):
+    """
+    test_org
+    """
 
     @parameterized.expand([
         ("http://example.com", {"payload": True}),
@@ -109,6 +153,9 @@ class TestGetJson(unittest.TestCase):
     ])
     @patch('client.requests.get')
     def test_get_json(self, test_url, test_payload, mock_get):
+        """
+        test_org
+        """
         mock_get.return_value.json.return_value = test_payload
         result = get_json(test_url)
         mock_get.assert_called_once_with(test_url)
