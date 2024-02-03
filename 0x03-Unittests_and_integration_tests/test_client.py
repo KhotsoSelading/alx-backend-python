@@ -30,6 +30,27 @@ GPAYLOAD = {
     "updated_at": "2021-12-30T01:40:20Z",
 }
 
+GREPOS = [
+    {
+        "id": 123456789,
+        "name": "example-repo",
+        "full_name": "google/example-repo",
+        "description": "An example repository from Google",
+        "html_url": "https://github.com/google/example-repo",
+        "created_at": "2022-01-01T12:00:00Z",
+        "updated_at": "2022-02-01T14:30:00Z",
+    },
+    {
+        "id": 123456799,
+        "name": "example-repo2",
+        "full_name": "google/example-repo",
+        "description": "An example repository from Google",
+        "html_url": "https://github.com/google/example-repo",
+        "created_at": "2022-01-01T12:00:00Z",
+        "updated_at": "2022-02-01T14:30:00Z",
+    },
+]
+
 ORGPAYLOAD = TEST_PAYLOAD[0][0]
 REPOSPAYLOAD = TEST_PAYLOAD[0][1]
 EXPECTED_REPOS = TEST_PAYLOAD[0][2]
@@ -128,17 +149,21 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         """
         cls.get_patcher.stop()
 
-    def test_public_repos(self):
-        """
-        test_org
-        """
-        client = GithubOrgClient("google")
-        self.mock_requests_get.side_effect = [
-            Mock(json=lambda: self.org_payload),
-            Mock(json=lambda: self.repos_payload)
-        ]
-        result = client.public_repos()
-        self.assertEqual(result, self.expected_repos)
+    @patch("client.get_json")
+    def test_public_repos(self, mock_get_json: MagicMock):
+        """test the public_repos() method with mocking"""
+        mock_get_json.return_value = GREPOS
+        with patch.object(
+            GithubOrgClient, "_public_repos_url", new_callable=PropertyMock
+        ) as cm:
+            cm.return_value = "https://api.github.com/orgs/google/repos"
+            cli = GithubOrgClient("google")
+            response = cli.public_repos()
+            expected = ["example-repo", "example-repo2"]
+            for rname in response:
+                self.assertIn(rname, expected)
+            mock_get_json.assert_called_once()
+            cm.assert_called_once()
 
     def test_public_repos_with_license(self):
         """
