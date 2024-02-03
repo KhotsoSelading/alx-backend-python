@@ -6,12 +6,34 @@ Author: Khotso Selading
 Date: 01-02-2024
 """
 
-from unittest.mock import patch, Mock
+import unittest
+from unittest.mock import patch, Mock, MagicMock, PropertyMock
 from client import GithubOrgClient, get_json
 from parameterized import parameterized, parameterized_class
 from utils import memoize
-import unittest
-from fixtures import org_payload, repos_payload, expected_repos, apache2_repos
+from fixtures import TEST_PAYLOAD
+from typing import Dict
+
+
+GPAYLOAD = {
+    "login": "google",
+    "id": 1342004,
+    "url": "https://api.github.com/orgs/google",
+    "description": "Google ❤️ Open Source",
+    "name": "Google",
+    "repos_url": "https://api.github.com/orgs/google/repos",
+    "email": "opensource@google.com",
+    "twitter_username": "GoogleOSS",
+    "followers": 35341,
+    "following": 0,
+    "created_at": "2012-01-18T01:30:18Z",
+    "updated_at": "2021-12-30T01:40:20Z",
+}
+
+ORGPAYLOAD = TEST_PAYLOAD[0][0]
+REPOSPAYLOAD = TEST_PAYLOAD[0][1]
+EXPECTED_REPOS = TEST_PAYLOAD[0][2]
+APACHE2_REPOS = TEST_PAYLOAD[0][3]
 
 
 class TestGithubOrgClient(unittest.TestCase):
@@ -23,45 +45,69 @@ class TestGithubOrgClient(unittest.TestCase):
         ("abc",)
     ])
     @patch('client.get_json')
-    def test_org(self, org_name, mock_get_json):
+    def test_org(self, org_name: str, mock_get_json: MagicMock):
         """
         test_org
         """
         mock_get_json.return_value = {"repos_url": "http://example.com"}
         client = GithubOrgClient(org_name)
-        result = client.org()
-        mock_get_json.assert_called_once_with("http://example.com")
+        result = client.org
+        mock_get_json.assert_called_once_with(
+            f"https://api.github.com/orgs/{org_name}"
+            )
         self.assertEqual(result, mock_get_json.return_value)
 
-    @patch('client.GithubOrgClient.org',
-           return_value={"repos_url": "http://example.com"})
-    def test_public_repos_url(self, mock_org):
-        """
-        test_org
-        """
-        client = GithubOrgClient("google")
-        result = client._public_repos_url()
-        mock_org.assert_called_once()
-        self.assertEqual(result, "http://example.com/repos")
+    def test_public_repos_url(self):
+        """tests the _public_repos_url property"""
+        with patch.object(
+            GithubOrgClient, "org", new_callable=PropertyMock
+        ) as cm:
+            cm.return_value = GPAYLOAD
+            cli = GithubOrgClient("google")
+            self.assertEqual(
+                cli._public_repos_url,
+                "https://api.github.com/orgs/google/repos",
+            )
 
     @parameterized.expand([
         ({"license": {"key": "my_license"}}, "my_license", True),
         ({"license": {"key": "other_license"}}, "my_license", False)
     ])
-    def test_has_license(self, repo, license_key, expected_result):
+    def test_has_license(self, repo: Dict, license_key: str,
+                         expected_result: bool):
         """
         test_org
         """
-        client = GithubOrgClient("google")
-        with patch('client.GithubOrgClient._public_repos_url',
-                   return_value="http://example.com/repos"), \
-             patch('client.get_json', return_value=[repo]):
-            result = client.has_license(license_key)
-        self.assertEqual(result, expected_result)
+        self.assertEqual(
+            GithubOrgClient.has_license(repo, license_key), expected_result)
 
 
-@parameterized_class("org_payload", "repos_payload", "expected_repos",
-                     "apache2_repos")
+def requests_get(*args, **kwargs):
+    """
+    Function that mocks requests.get function
+    Returns the correct json data based on the given input url
+    """
+    class MockResponse:
+        """
+        Mock response
+        """
+
+        def __init__(self, json_data):
+            self.json_data = json_data
+
+        def json(self):
+            return self.json_data
+
+    if args[0] == "https://api.github.com/orgs/google":
+        return MockResponse(TEST_PAYLOAD[0][0])
+    if args[0] == TEST_PAYLOAD[0][0]["repos_url"]:
+        return MockResponse(TEST_PAYLOAD[0][1])
+
+
+@parameterized_class([{"org_payload": ORGPAYLOAD,
+                       "repos_payload": REPOSPAYLOAD,
+                       "expected_repos": EXPECTED_REPOS,
+                       "apache2_repos": APACHE2_REPOS}])
 class TestIntegrationGithubOrgClient(unittest.TestCase):
     """
     test_org
@@ -72,7 +118,7 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         """
         test_org
         """
-        cls.get_patcher = patch('client.requests.get')
+        cls.get_patcher = patch('utils.requests.get', side_effect=requests_get)
         cls.mock_requests_get = cls.get_patcher.start()
 
     @classmethod
@@ -105,61 +151,6 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         ]
         result = client.public_repos(license="apache-2.0")
         self.assertEqual(result, self.apache2_repos)
-
-
-class TestMemoize(unittest.TestCase):
-    """
-    test_org
-    """
-
-    class TestClass:
-        """
-        test_org
-        """
-
-        def a_method(self):
-            """
-            test_org
-            """
-            return 42
-
-        @memoize
-        def a_property(self):
-            """
-            test_org
-            """
-            return self.a_method()
-
-    @patch.object(TestClass, 'a_method')
-    def test_memoize(self, mock_a_method):
-        """
-        test_org
-        """
-        instance = self.TestClass()
-        result_1 = instance.a_property()
-        result_2 = instance.a_property()
-        mock_a_method.assert_called_once()
-        self.assertEqual(result_1, result_2)
-
-
-class TestGetJson(unittest.TestCase):
-    """
-    test_org
-    """
-
-    @parameterized.expand([
-        ("http://example.com", {"payload": True}),
-        ("http://holberton.io", {"payload": False})
-    ])
-    @patch('client.requests.get')
-    def test_get_json(self, test_url, test_payload, mock_get):
-        """
-        test_org
-        """
-        mock_get.return_value.json.return_value = test_payload
-        result = get_json(test_url)
-        mock_get.assert_called_once_with(test_url)
-        self.assertEqual(result, test_payload)
 
 
 if __name__ == "__main__":
